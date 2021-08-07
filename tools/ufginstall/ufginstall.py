@@ -285,26 +285,18 @@ class ZlibDep(Dep):
     force = self.forced()
     dl_dir = download_archive(url, path, force)
     with cwd(dl_dir):
-      src_dir = os.getcwd()
-      build_dir = os.path.join(cfg.build_dir, os.path.split(src_dir)[1])
-      if force and os.path.isdir(build_dir):
-        # Delete existing directory content, but preserve the directory itself
-        # because we're going to need it (and on Windows, quickly deleting then
-        # recreating a directory may cause transient failures).
-        delete_directory_content(build_dir)
+      run_cmake(force)
+    with cwd(os.path.join(cfg.build_dir, 'zlib-1.2.11')):
+      shutil.copy('zconf.h', dl_dir)
       if platform.system() == 'Windows':
-        # Run msbuild instead of using run_cmake to properly handle LNK2001 and
-        # LNK2019 unresolved external issues caused by improper use of the
-        # ZLIB_WINAPI c++ preprocessor. Cmake generates a visual studio project
-        # specific to the current machine, and msbuild builds zlib from the
-        # generated project file.
-        run(['cmake', '-DCMAKE_GENERATOR_PLATFORM=x64', '.'])
-        run(['cmake'])
-        run(['msbuild', '/P:Configuration=Release', 'zlib.sln'])
+        release_dir = os.path.join(dl_dir, 'Release')
+        os.makedirs(release_dir)
+        shutil.copy('Release/zlib.lib', release_dir)
       else:
-        run(['chmod', '+x', 'configure'])
-        run(['./configure'])
-        run(['make'])
+        if platform.system() == 'Darwin':
+          shutil.copy('libz.dylib', dl_dir)
+        else:
+          shutil.copy('libz.so', dl_dir)
 
 
 class TestDataSamplesDep(Dep):
